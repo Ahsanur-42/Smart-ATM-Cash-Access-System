@@ -2,16 +2,23 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
-#define PIN 1234
 #define MAX_ATTEMPTS 3
-#define MAX_CARDS 3
+#define MAX_CARDS 10
+#define DAILY_LIMIT 50000.0
+#define MONTHLY_LIMIT 1000000.0
+#define SINGLE_WITHDRAW_LIMIT 20000.0
 
 typedef struct
 {
     char accountNumber[20];
     char cardNumber[20];
+    int pin;
     double balance;
+    double dailyWithdrawn;
+    double monthlyWithdrawn;
+    int lastWithdrawMonth;
 } Card;
 
 void printSeparator()
@@ -26,14 +33,171 @@ void printHeader(const char *title)
     printf("===========================================\n");
 }
 
-void showCards(Card cards[])
+bool confirmAction(const char *message)
+{
+    char choice;
+    printf("%s (Y/N): ", message);
+    scanf(" %c", &choice);
+    return (choice == 'Y' || choice == 'y');
+}
+
+bool login(Card *card)
+{
+    int inputPin, attempts = 0;
+    while (attempts < MAX_ATTEMPTS)
+    {
+        printf("\nEnter your 4-digit PIN: ");
+        if (scanf("%d", &inputPin) != 1)
+        {
+            printf("Invalid input! Please enter a numeric PIN.\n");
+            while (getchar() != '\n')
+                ;
+            continue;
+        }
+        if (inputPin == card->pin)
+        {
+            printf("\nLogin successful!\n");
+            return true;
+        }
+        else
+        {
+            printf("Incorrect PIN. Attempts remaining: %d\n", MAX_ATTEMPTS - attempts - 1);
+            attempts++;
+        }
+    }
+    printf("Too many incorrect attempts. Access denied.\n");
+    exit(1);
+}
+
+void resetPin(Card *card)
+{
+    printHeader("PIN Reset");
+    int newPin, confirmPin;
+
+    printf("Enter new 4-digit PIN: ");
+    if (scanf("%d", &newPin) != 1 || newPin < 1000 || newPin > 9999)
+    {
+        printf("Invalid PIN format. Reset cancelled.\n");
+        while (getchar() != '\n')
+            ;
+        return;
+    }
+
+    printf("Confirm new PIN: ");
+    if (scanf("%d", &confirmPin) != 1 || confirmPin != newPin)
+    {
+        printf("PIN confirmation failed. Reset cancelled.\n");
+        while (getchar() != '\n')
+            ;
+        return;
+    }
+
+    card->pin = newPin;
+    printf("PIN reset successful. Please log in again with your new PIN.\n");
+    if (!login(card))
+    {
+        printf("Re-login failed. Exiting.\n");
+        exit(1);
+    }
+}
+
+void showCards(Card cards[], int cardCount)
 {
     printHeader("Available Cards");
-    for (int i = 0; i < MAX_CARDS; i++)
+    for (int i = 0; i < cardCount; i++)
     {
         printf("[%d] Card Ending in %s\n", i + 1, &cards[i].cardNumber[strlen(cards[i].cardNumber) - 2]);
     }
     printSeparator();
+}
+
+int selectCardByLastTwoDigits(Card cards[], int cardCount)
+{
+    showCards(cards, cardCount);
+    char lastTwoDigits[3];
+
+    printf("Enter the last two digits of the card to activate: ");
+    scanf("%2s", lastTwoDigits);
+
+    for (int i = 0; i < cardCount; i++)
+    {
+        if (strcmp(&cards[i].cardNumber[strlen(cards[i].cardNumber) - 2], lastTwoDigits) == 0)
+        {
+            printf("Card ending in %s activated.\n", lastTwoDigits);
+            return i;
+        }
+    }
+
+    printf("No card found with the last two digits '%s'.\n", lastTwoDigits);
+    return -1;
+}
+
+void atmMenu()
+{
+    printHeader("Main Menu");
+    printf("1. Instant Deposit\n");
+    printf("2. Withdraw\n");
+    printf("3. Check Balance\n");
+    printf("4. Show Card Details\n");
+    printf("5. Switch Card\n");
+    printf("6. Card to Mobile Transfer\n");
+    printf("7. Add New Card\n");
+    printf("8. Reset PIN\n");
+    printf("9. Exit\n");
+    printSeparator();
+}
+
+void checkBalance(Card *card)
+{
+    printHeader("Balance Information");
+    printf("Account Number: %s\n", card->accountNumber);
+    printf("Card Number: %s\n", card->cardNumber);
+    printf("Current Balance: $%.2f\n", card->balance);
+    printSeparator();
+}
+
+void deposit(Card *card)
+{
+    printHeader("Deposit");
+    double amount;
+
+    printf("Enter amount to deposit: $");
+    if (scanf("%lf", &amount) != 1 || amount <= 0)
+    {
+        printf("Invalid amount entered.\n");
+        return;
+    }
+
+    card->balance += amount;
+    printf("Deposit of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
+}
+
+void withdraw(Card *card)
+{
+    printHeader("Withdraw");
+    double amount;
+
+    printf("Enter amount to withdraw: $");
+    if (scanf("%lf", &amount) != 1 || amount <= 0)
+    {
+        printf("Invalid amount entered.\n");
+        return;
+    }
+
+    if (amount > SINGLE_WITHDRAW_LIMIT)
+    {
+        printf("Cannot withdraw more than $%.2f in a single transaction.\n", SINGLE_WITHDRAW_LIMIT);
+        return;
+    }
+
+    if (amount > card->balance)
+    {
+        printf("Insufficient funds.\n");
+        return;
+    }
+
+    card->balance -= amount;
+    printf("Withdrawal of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
 }
 
 void showCardDetails(Card *card)
@@ -45,203 +209,135 @@ void showCardDetails(Card *card)
     printSeparator();
 }
 
-bool login()
+void cardToMobileTransfer(Card *card)
 {
-    int inputPin, attempts = 0;
-
-    while (attempts < MAX_ATTEMPTS)
-    {
-        printf("\nDefault pin: 1234\n");
-        printf("\nEnter your 4-digit PIN: ");
-
-        if (scanf("%d", &inputPin) != 1)
-        {
-            printf("Invalid input! Please enter a numeric PIN.\n");
-            while (getchar() != '\n')
-                ;
-            continue;
-        }
-
-        if (inputPin == PIN)
-        {
-            printf("\nLogin successful!\n");
-            return true;
-        }
-        else
-        {
-            printf("Incorrect PIN. Try again.\n");
-            attempts++;
-        }
-    }
-
-    printf("Too many incorrect attempts. Access denied.\n");
-    exit(1);
-}
-
-void atmMenu()
-{
-    printHeader("Main Menu");
-    printf("1. Exit\n");
-    printf("2. Check Balance\n");
-    printf("3. Deposit Balance\n");
-    printf("4. Withdraw Balance\n");
-    printf("5. Switch Card\n");
-    printf("6. Show Card Details\n");
-    printSeparator();
-}
-
-void atmMachine(Card cards[])
-{
-    int activeCard = -1;
-    int choice;
+    printHeader("Card to Mobile Transfer");
+    char mobileNumber[15];
     double amount;
-    char lastTwoDigits[3];
-    char continueOption;
 
-    while (1)
+    printf("Enter Mobile Number: ");
+    scanf("%14s", mobileNumber);
+
+    printf("Enter amount to transfer: $");
+    if (scanf("%lf", &amount) != 1 || amount <= 0 || amount > card->balance)
     {
-        if (activeCard == -1)
-        {
-            showCards(cards);
-            printf("Enter the last 2 digits of the card number to activate: ");
-            scanf("%s", lastTwoDigits);
-
-            bool found = false;
-            for (int i = 0; i < MAX_CARDS; i++)
-            {
-                if (strlen(cards[i].cardNumber) >= 2 &&
-                    strcmp(&cards[i].cardNumber[strlen(cards[i].cardNumber) - 2], lastTwoDigits) == 0)
-                {
-                    activeCard = i;
-                    printf("Activated Card: %s\n", cards[activeCard].cardNumber);
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                printf("No card found with the entered last 2 digits. Try again.\n");
-                continue;
-            }
-        }
-
-        while (1)
-        {
-            printf("\nActivated Card: %s (Balance: $%.2f)\n", cards[activeCard].cardNumber, cards[activeCard].balance);
-            atmMenu();
-
-            printf("\nEnter your choice: ");
-            if (scanf("%d", &choice) != 1)
-            {
-                printf("Invalid input! Please enter a number.\n");
-                while (getchar() != '\n')
-                    ;
-                continue;
-            }
-
-            switch (choice)
-            {
-            case 1:
-                printf("Thank you for using the ATM. Goodbye!\n");
-                return;
-
-            case 2:
-                printf("Your current balance on Card %s is: $%.2f\n", cards[activeCard].cardNumber, cards[activeCard].balance);
-                break;
-
-            case 3:
-                printf("Enter the amount to deposit: $");
-                if (scanf("%lf", &amount) != 1 || amount <= 0)
-                {
-                    printf("Invalid amount. Deposit failed.\n");
-                    while (getchar() != '\n')
-                        ;
-                    continue;
-                }
-                cards[activeCard].balance += amount;
-                printf("Deposit successful! New balance: $%.2f\n", cards[activeCard].balance);
-                break;
-
-            case 4:
-                printf("Enter the amount to withdraw: $");
-                if (scanf("%lf", &amount) != 1 || amount <= 0)
-                {
-                    printf("Invalid amount. Withdrawal failed.\n");
-                    while (getchar() != '\n')
-                        ;
-                    continue;
-                }
-                if (amount > cards[activeCard].balance)
-                {
-                    printf("Insufficient funds. Withdrawal failed.\n");
-                }
-                else
-                {
-                    cards[activeCard].balance -= amount;
-                    printf("Withdrawal successful! New balance: $%.2f\n", cards[activeCard].balance);
-                }
-                break;
-
-            case 5:
-                printf("Switching card...\n");
-                showCards(cards);
-                printf("Enter the last 2 digits of the card number to activate: ");
-                scanf("%s", lastTwoDigits);
-
-                bool found = false;
-                for (int i = 0; i < MAX_CARDS; i++)
-                {
-                    if (strlen(cards[i].cardNumber) >= 2 &&
-                        strcmp(&cards[i].cardNumber[strlen(cards[i].cardNumber) - 2], lastTwoDigits) == 0)
-                    {
-                        activeCard = i;
-                        printf("Switched to Card: %s (Balance: $%.2f)\n", cards[activeCard].cardNumber, cards[activeCard].balance);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found)
-                {
-                    printf("No card found with the entered last 2 digits. Try again.\n");
-                }
-                break;
-
-            case 6:
-                showCardDetails(&cards[activeCard]);
-
-                printf("\nDo you want to perform another action? (Y/N): ");
-                scanf(" %c", &continueOption);
-
-                if (continueOption == 'N' || continueOption == 'n')
-                {
-                    printf("Exiting ATM. Thank you!\n");
-                    return;
-                }
-                break;
-
-            default:
-                printf("Invalid choice. Please try again.\n");
-            }
-        }
+        printf("Invalid amount or insufficient balance.\n");
+        return;
     }
+
+    card->balance -= amount;
+    printf("Successfully transferred $%.2f to %s. New balance: $%.2f\n", amount, mobileNumber, card->balance);
+}
+
+void addNewCard(Card cards[], int *cardCount)
+{
+    if (*cardCount >= MAX_CARDS)
+    {
+        printf("Maximum number of cards reached. Cannot add more.\n");
+        return;
+    }
+
+    printHeader("Add New Card");
+    Card newCard;
+
+    printf("Enter Account Number: ");
+    scanf("%19s", newCard.accountNumber);
+
+    printf("Enter Card Number: ");
+    scanf("%19s", newCard.cardNumber);
+
+    printf("Set 4-digit PIN: ");
+    scanf("%d", &newCard.pin);
+
+    printf("Enter Initial Balance: $");
+    scanf("%lf", &newCard.balance);
+
+    newCard.dailyWithdrawn = 0;
+    newCard.monthlyWithdrawn = 0;
+    newCard.lastWithdrawMonth = -1;
+
+    cards[(*cardCount)++] = newCard;
+    printf("New card added successfully!\n");
 }
 
 int main()
 {
     Card cards[MAX_CARDS] = {
-        {"0322310105101042", "032231042", 100000.0},
-        {"0322310205101014", "032231014", 50000.0},
-        {"0322310105101025", "032231025", 99000.0}};
+        {"0322310105101042", "032231042", 1234, 100000.0, 0, 0, -1},
+        {"0322310205101014", "032231014", 5678, 50000.0, 0, 0, -1},
+        {"0322310105101025", "032231025", 9012, 99000.0, 0, 0, -1}};
+
+    int cardCount = 3;
+    int activeCardIndex = -1;
 
     printHeader("Welcome to the ATM Machine");
 
-    if (login())
+    while (true)
     {
-        atmMachine(cards);
+        if (activeCardIndex == -1)
+        {
+            activeCardIndex = selectCardByLastTwoDigits(cards, cardCount);
+            if (activeCardIndex == -1)
+                continue;
+            if (!login(&cards[activeCardIndex]))
+                continue;
+        }
+
+        atmMenu();
+        printf("Enter your choice: ");
+        int choice;
+        if (scanf("%d", &choice) != 1)
+        {
+            printf("Invalid input. Please enter a number.\n");
+            while (getchar() != '\n')
+                ;
+            continue;
+        }
+
+        switch (choice)
+        {
+        case 1:
+            deposit(&cards[activeCardIndex]);
+            break;
+        case 2:
+            withdraw(&cards[activeCardIndex]);
+            break;
+        case 3:
+            checkBalance(&cards[activeCardIndex]);
+            break;
+        case 4:
+            showCardDetails(&cards[activeCardIndex]);
+            break;
+        case 5:
+            printf("Switching card...\n");
+            activeCardIndex = -1;
+            break;
+        case 6:
+            cardToMobileTransfer(&cards[activeCardIndex]);
+            break;
+        case 7:
+            addNewCard(cards, &cardCount);
+            break;
+        case 8:
+            resetPin(&cards[activeCardIndex]);
+            break;
+        case 9:
+            if (confirmAction("Are you sure you want to exit?"))
+            {
+                printf("Thank you for using the ATM. Goodbye!\n");
+                return 0;
+            }
+            break;
+        default:
+            printf("Invalid choice. Please try again.\n");
+        }
+
+        if (choice != 5 && choice != 9 && !confirmAction("Do you want to perform another action?"))
+        {
+            printf("Thank you for using the ATM. Goodbye!\n");
+            break;
+        }
     }
 
-    printHeader("Thank You for Using Our ATM!");
     return 0;
 }
