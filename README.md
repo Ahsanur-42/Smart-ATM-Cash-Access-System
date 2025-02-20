@@ -5,6 +5,7 @@
 **Mentor**: Sahela Rahman (Lecturer, Department of CSE, PUB)  
 
 ## Team Details
+**Project Name**: Smart ATM Cash Access System  
 **Team Name**: Syntax Error  
 
 ### Team Members
