@@ -66,7 +66,11 @@ bool login(Card *card)
         }
     }
     printf("Too many incorrect attempts. Access denied.\n");
+<<<<<<< HEAD
     printf("Please, Contact to our nearest official branch for more details.\n");
+=======
+    printf("Please, Contact to your nearest official branch for reactivate your card!\n");
+>>>>>>> d3e508fc35e8555f731bfa65dc8d61af36a56ad6
     exit(1);
 }
 
@@ -247,7 +251,7 @@ void cardToMobileTransfer(Card *card)
     }
 
     card->balance -= amount;
-    printf("Successfully transferred $%.2f to %s. New balance: $%.2f\n", amount, mobileNumber, card->balance);
+    printf("Successfully transferred $%.2f to %s. \nNew balance: $%.2f\n", amount, mobileNumber, card->balance);
 }
 
 void addNewCard(Card cards[], int *cardCount)
@@ -309,7 +313,7 @@ int main()
         int choice;
         if (scanf("%d", &choice) != 1)
         {
-            printf("Invalid input. Please enter a number.\n");
+            printf("Invalid input. \nPlease enter a number.\n");
             while (getchar() != '\n')
                 ;
             continue;
