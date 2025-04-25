@@ -66,11 +66,8 @@ bool login(Card *card)
         }
     }
     printf("Too many incorrect attempts. Access denied.\n");
-<<<<<<< HEAD
     printf("Please, Contact to our nearest official branch for more details.\n");
-=======
     printf("Please, Contact to your nearest official branch for reactivate your card!\n");
->>>>>>> d3e508fc35e8555f731bfa65dc8d61af36a56ad6
     exit(1);
 }
 
