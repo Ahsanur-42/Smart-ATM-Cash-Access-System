@@ -36,7 +36,7 @@ void printHeader(const char *title)
 bool confirmAction(const char *message)
 {
     char choice;
-    printf("%s (Y/N): ", message);
+    printf("%s (Y/N or y/n): ", message);
     scanf(" %c", &choice);
     return (choice == 'Y' || choice == 'y');
 }
@@ -66,39 +66,60 @@ bool login(Card *card)
         }
     }
     printf("Too many incorrect attempts. Access denied.\n");
+    printf("Please, Contact to our nearest official branch for more details.\n");
     exit(1);
 }
 
 void resetPin(Card *card)
 {
     printHeader("PIN Reset");
-    int newPin, confirmPin;
 
-    printf("Enter new 4-digit PIN: ");
-    if (scanf("%d", &newPin) != 1 || newPin < 1000 || newPin > 9999)
+    int oldPin, newPin, confirmPin;
+    int attempts = 0;
+    const int maxAttempts = 3;
+
+    while (attempts < maxAttempts)
     {
-        printf("Invalid PIN format. Reset cancelled.\n");
-        while (getchar() != '\n')
-            ;
-        return;
+        printf("Enter current PIN: ");
+        if (scanf("%d", &oldPin) == 1 && oldPin == card->pin)
+        {
+            printf("Enter new 4-digit PIN: ");
+            if (scanf("%d", &newPin) != 1 || newPin < 1000 || newPin > 9999)
+            {
+                printf("Invalid PIN format. Reset cancelled.\n");
+                while (getchar() != '\n');
+                return;
+            }
+
+            printf("Confirm new PIN: ");
+            if (scanf("%d", &confirmPin) != 1 || confirmPin != newPin)
+            {
+                printf("PIN confirmation failed. Reset cancelled.\n");
+                while (getchar() != '\n');
+                return;
+            }
+
+            card->pin = newPin;
+            printf("PIN reset successful. Please log in again with your new PIN.\n");
+
+            if (!login(card))
+            {
+                printf("Re-login failed. Exiting.\n");
+                exit(1);
+            }
+
+            return;
+        }
+        else
+        {
+            attempts++;
+            printf("Incorrect PIN. Attempts remaining: %d\n", maxAttempts - attempts);
+            while (getchar() != '\n');
+        }
     }
 
-    printf("Confirm new PIN: ");
-    if (scanf("%d", &confirmPin) != 1 || confirmPin != newPin)
-    {
-        printf("PIN confirmation failed. Reset cancelled.\n");
-        while (getchar() != '\n')
-            ;
-        return;
-    }
-
-    card->pin = newPin;
-    printf("PIN reset successful. Please log in again with your new PIN.\n");
-    if (!login(card))
-    {
-        printf("Re-login failed. Exiting.\n");
-        exit(1);
-    }
+    printf("Too many incorrect attempts. Access denied.\n");
+    exit(1);
 }
 
 void showCards(Card cards[], int cardCount)
