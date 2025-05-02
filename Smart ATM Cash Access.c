@@ -88,7 +88,8 @@ void resetPin(Card *card)
             if (scanf("%d", &newPin) != 1 || newPin < 1000 || newPin > 9999)
             {
                 printf("Invalid PIN format. Reset cancelled.\n");
-                while (getchar() != '\n');
+                while (getchar() != '\n')
+                    ;
                 return;
             }
 
@@ -96,7 +97,8 @@ void resetPin(Card *card)
             if (scanf("%d", &confirmPin) != 1 || confirmPin != newPin)
             {
                 printf("PIN confirmation failed. Reset cancelled.\n");
-                while (getchar() != '\n');
+                while (getchar() != '\n')
+                    ;
                 return;
             }
 
@@ -115,7 +117,8 @@ void resetPin(Card *card)
         {
             attempts++;
             printf("Incorrect PIN. Attempts remaining: %d\n", maxAttempts - attempts);
-            while (getchar() != '\n');
+            while (getchar() != '\n')
+                ;
         }
     }
 
@@ -357,6 +360,7 @@ int main()
         if (choice != 5 && choice != 9 && !confirmAction("Do you want to perform another action?"))
         {
             printf("Thank you for using the ATM. Goodbye!\n");
+            printf("Thank you for using the ATM. Bye bye!\n");
             break;
         }
     }
