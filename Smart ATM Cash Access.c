@@ -361,6 +361,7 @@ int main()
         {
             printf("Thank you for using the ATM. Goodbye!\n");
             printf("Team Syntax Error!\n");
+            printf("Powered by PUB!");
             break;
         }
     }
