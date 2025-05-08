@@ -15,7 +15,7 @@
 
 typedef struct
 {
-    char name[50]; // 👈 Add this
+    char name[50];
     char accountNumber[20];
     char cardNumber[20];
     int pin;
@@ -23,7 +23,7 @@ typedef struct
     double dailyWithdrawn;
     double monthlyWithdrawn;
     int lastWithdrawMonth;
-    char lastWithdrawalDate[11]; // Format: YYYY-MM-DD
+    char lastWithdrawalDate[11];
 } Card;
 
 void printSeparator()
@@ -110,7 +110,7 @@ void resetPin(Card *card)
             card->pin = newPin;
             printf("PIN reset successful. Please log in again with your new PIN.\n");
 
-            saveCardToTextFile(card); // Save the updated card after PIN reset
+            saveCardToTextFile(card);
 
             return;
         }
@@ -149,7 +149,7 @@ void saveCardToTextFile(const Card *card)
         return;
     }
 
-    fprintf(file, "Name: %s\n", card->name); // 👈 Save name
+    fprintf(file, "Name: %s\n", card->name);
     fprintf(file, "AccountNumber: %s\n", card->accountNumber);
     fprintf(file, "CardNumber: %s\n", card->cardNumber);
     fprintf(file, "PIN: %d\n", card->pin);
@@ -201,7 +201,7 @@ int loadCardsFromFile(Card cards[])
             }
 
             Card card;
-            fscanf(file, "Name: %49[^\n]\n", card.name); // 👈 Read name
+            fscanf(file, "Name: %49[^\n]\n", card.name);
             fscanf(file, "AccountNumber: %19s\n", card.accountNumber);
             fscanf(file, "CardNumber: %19s\n", card.cardNumber);
             fscanf(file, "PIN: %d\n", &card.pin);
@@ -261,7 +261,7 @@ void atmMenu()
 void checkBalance(Card *card)
 {
     printHeader("Balance Information");
-    printf("Cardholder Name: %s\n", card->name); // <-- New line
+    printf("Cardholder Name: %s\n", card->name);
     printf("Account Number: %s\n", card->accountNumber);
     printf("Card Number: %s\n", card->cardNumber);
     printf("Current Balance: $%.2f\n", card->balance);
@@ -283,7 +283,7 @@ void deposit(Card *card)
     card->balance += amount;
     printf("Deposit of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
 
-    saveCardToTextFile(card); // Save the updated card info after deposit
+    saveCardToTextFile(card);
 }
 
 void withdraw(Card *card)
@@ -291,20 +291,17 @@ void withdraw(Card *card)
     printHeader("Withdraw");
     double amount;
 
-    time_t t = time(NULL);               // Keep this definition here
-    struct tm *now = localtime(&t);      // And this one too
+    time_t t = time(NULL);
+    struct tm *now = localtime(&t);
     int currentDay = now->tm_mday;
-    int currentMonth = now->tm_mon + 1; // Months since January [0-11]
+    int currentMonth = now->tm_mon + 1;
 
-    // Reset monthly limit if month changed
     if (card->lastWithdrawMonth != currentMonth)
     {
         card->monthlyWithdrawn = 0;
         card->dailyWithdrawn = 0;
         card->lastWithdrawMonth = currentMonth;
     }
-
-    // Reset daily limit if it's a new day (optional: you can add lastWithdrawDay if you want strict daily tracking)
 
     printf("Enter amount to withdraw: $");
     if (scanf("%lf", &amount) != 1 || amount <= 0)
@@ -337,26 +334,23 @@ void withdraw(Card *card)
         return;
     }
 
-    // After successful withdrawal
     strftime(card->lastWithdrawalDate, sizeof(card->lastWithdrawalDate), "%Y-%m-%d", now);
 
-    // ✅ Apply withdrawal
     card->balance -= amount;
     card->dailyWithdrawn += amount;
     card->monthlyWithdrawn += amount;
 
-    // ✅ Set the last withdrawal date
     strftime(card->lastWithdrawalDate, sizeof(card->lastWithdrawalDate), "%Y-%m-%d", now);
 
     printf("Withdrawal of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
 
-    saveCardToTextFile(card); // Save updates
+    saveCardToTextFile(card);
 }
 
 void showCardDetails(Card *card)
 {
     printHeader("Card Details");
-    printf("Cardholder Name: %s\n", card->name); // 👈 Show name
+    printf("Cardholder Name: %s\n", card->name);
 
     printf("Account Number: %s\n", card->accountNumber);
     printf("Card Number: %s\n", card->cardNumber);
@@ -388,7 +382,7 @@ void cardToMobileTransfer(Card *card)
     card->balance -= amount;
     printf("Successfully transferred $%.2f to %s. New balance: $%.2f\n", amount, mobileNumber, card->balance);
 
-    saveCardToTextFile(card); // Save the updated card info after transfer
+    saveCardToTextFile(card);
 }
 
 void addNewCard(Card cards[], int *cardCount)
@@ -403,7 +397,7 @@ void addNewCard(Card cards[], int *cardCount)
     Card newCard;
 
     printf("Enter Cardholder Name: ");
-    scanf(" %[^\n]", newCard.name); // 👈 Read full name with spaces
+    scanf(" %[^\n]", newCard.name);
 
     printf("Enter Account Number: ");
     scanf("%19s", newCard.accountNumber);
@@ -423,7 +417,7 @@ void addNewCard(Card cards[], int *cardCount)
 
     cards[(*cardCount)++] = newCard;
 
-    saveCardToTextFile(&newCard); // Save the new card
+    saveCardToTextFile(&newCard);
     printf("New card added and saved successfully!\n");
 }
 
@@ -432,14 +426,13 @@ int main()
     Card cards[MAX_CARDS];
     int cardCount = loadCardsFromFile(cards);
 
-    // Load defaults if file is missing
     if (cardCount == 0)
     {
         cards[0] = (Card){"MD AHSANUR RAHAMAN", "0322310105101042", "032231042", 1234, 100000.0, 0, 0, -1, ""};
         cards[1] = (Card){"MST SOMAIYA ALAM ASHA", "0322310205101014", "032231014", 5678, 50000.0, 0, 0, -1, ""};
         cards[2] = (Card){"TUSAR CHANDRA", "0322310105101025", "032231025", 9012, 99000.0, 0, 0, -1, ""};
         cardCount = 3;
-        saveCardsToFile(cards, cardCount); // Save initial data
+        saveCardsToFile(cards, cardCount);
     }
     int activeCardIndex = -1;
 
