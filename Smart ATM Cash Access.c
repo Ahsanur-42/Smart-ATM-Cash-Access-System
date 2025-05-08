@@ -3,12 +3,15 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <windows.h>
 
 #define MAX_ATTEMPTS 3
 #define MAX_CARDS 10
 #define DAILY_LIMIT 50000.0
 #define MONTHLY_LIMIT 1000000.0
 #define SINGLE_WITHDRAW_LIMIT 20000.0
+
+#define CARD_FOLDER_PATH "G:\\5th C Project Data"
 
 typedef struct
 {
@@ -105,11 +108,7 @@ void resetPin(Card *card)
             card->pin = newPin;
             printf("PIN reset successful. Please log in again with your new PIN.\n");
 
-            if (!login(card))
-            {
-                printf("Re-login failed. Exiting.\n");
-                exit(1);
-            }
+            saveCardToTextFile(card); // Save the updated card after PIN reset
 
             return;
         }
@@ -134,6 +133,86 @@ void showCards(Card cards[], int cardCount)
         printf("[%d] Card Ending in %s\n", i + 1, &cards[i].cardNumber[strlen(cards[i].cardNumber) - 2]);
     }
     printSeparator();
+}
+
+void saveCardToTextFile(const Card *card)
+{
+    char filePath[100];
+    snprintf(filePath, sizeof(filePath), "%s\\%s.txt", CARD_FOLDER_PATH, card->cardNumber);
+
+    FILE *file = fopen(filePath, "w");
+    if (!file)
+    {
+        perror("Error saving card");
+        return;
+    }
+
+    fprintf(file, "AccountNumber: %s\n", card->accountNumber);
+    fprintf(file, "CardNumber: %s\n", card->cardNumber);
+    fprintf(file, "PIN: %d\n", card->pin);
+    fprintf(file, "Balance: %.2f\n", card->balance);
+    fprintf(file, "DailyWithdrawn: %.2f\n", card->dailyWithdrawn);
+    fprintf(file, "MonthlyWithdrawn: %.2f\n", card->monthlyWithdrawn);
+    fprintf(file, "LastWithdrawMonth: %d\n", card->lastWithdrawMonth);
+
+    fclose(file);
+}
+
+void saveCardsToFile(Card cards[], int cardCount)
+{
+    for (int i = 0; i < cardCount; i++)
+    {
+        saveCardToTextFile(&cards[i]);
+    }
+}
+
+int loadCardsFromFile(Card cards[])
+{
+    WIN32_FIND_DATA findFileData;
+    HANDLE hFind;
+    char searchPath[100];
+    snprintf(searchPath, sizeof(searchPath), "%s\\*.txt", CARD_FOLDER_PATH);
+
+    int count = 0;
+
+    hFind = FindFirstFile(searchPath, &findFileData);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        printf("No card files found. Starting with default data.\n");
+        return 0;
+    }
+
+    do
+    {
+        if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            char filePath[150];
+            snprintf(filePath, sizeof(filePath), "%s\\%s", CARD_FOLDER_PATH, findFileData.cFileName);
+
+            FILE *file = fopen(filePath, "r");
+            if (!file)
+            {
+                perror("Error reading card file");
+                continue;
+            }
+
+            Card card;
+            fscanf(file, "AccountNumber: %19s\n", card.accountNumber);
+            fscanf(file, "CardNumber: %19s\n", card.cardNumber);
+            fscanf(file, "PIN: %d\n", &card.pin);
+            fscanf(file, "Balance: %lf\n", &card.balance);
+            fscanf(file, "DailyWithdrawn: %lf\n", &card.dailyWithdrawn);
+            fscanf(file, "MonthlyWithdrawn: %lf\n", &card.monthlyWithdrawn);
+            fscanf(file, "LastWithdrawMonth: %d\n", &card.lastWithdrawMonth);
+            fclose(file);
+
+            if (count < MAX_CARDS)
+                cards[count++] = card;
+        }
+    } while (FindNextFile(hFind, &findFileData) != 0);
+
+    FindClose(hFind);
+    return count;
 }
 
 int selectCardByLastTwoDigits(Card cards[], int cardCount)
@@ -195,6 +274,8 @@ void deposit(Card *card)
 
     card->balance += amount;
     printf("Deposit of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
+
+    saveCardToTextFile(card); // Save the updated card info after deposit
 }
 
 void withdraw(Card *card)
@@ -223,6 +304,8 @@ void withdraw(Card *card)
 
     card->balance -= amount;
     printf("Withdrawal of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
+
+    saveCardToTextFile(card); // Save the updated card info after withdrawal
 }
 
 void showCardDetails(Card *card)
@@ -231,6 +314,9 @@ void showCardDetails(Card *card)
     printf("Account Number: %s\n", card->accountNumber);
     printf("Card Number: %s\n", card->cardNumber);
     printf("Balance: $%.2f\n", card->balance);
+    printf("Daily Withdrawn: $%.2f\n", card->dailyWithdrawn);
+    printf("Monthly Withdrawn: $%.2f\n", card->monthlyWithdrawn);
+    printf("Last Withdrawal Month: %d\n", card->lastWithdrawMonth);
     printSeparator();
 }
 
@@ -251,7 +337,9 @@ void cardToMobileTransfer(Card *card)
     }
 
     card->balance -= amount;
-    printf("Successfully transferred $%.2f to %s. \nNew balance: $%.2f\n", amount, mobileNumber, card->balance);
+    printf("Successfully transferred $%.2f to %s. New balance: $%.2f\n", amount, mobileNumber, card->balance);
+
+    saveCardToTextFile(card); // Save the updated card info after transfer
 }
 
 void addNewCard(Card cards[], int *cardCount)
@@ -282,17 +370,25 @@ void addNewCard(Card cards[], int *cardCount)
     newCard.lastWithdrawMonth = -1;
 
     cards[(*cardCount)++] = newCard;
-    printf("New card added successfully!\n");
+
+    saveCardToTextFile(&newCard); // Save the new card
+    printf("New card added and saved successfully!\n");
 }
 
 int main()
 {
-    Card cards[MAX_CARDS] = {
-        {"0322310105101042", "032231042", 1234, 100000.0, 0, 0, -1},
-        {"0322310205101014", "032231014", 5678, 50000.0, 0, 0, -1},
-        {"0322310105101025", "032231025", 9012, 99000.0, 0, 0, -1}};
+    Card cards[MAX_CARDS];
+    int cardCount = loadCardsFromFile(cards);
 
-    int cardCount = 3;
+    // Load defaults if file is missing
+    if (cardCount == 0)
+    {
+        cards[0] = (Card){"0322310105101042", "032231042", 1234, 100000.0, 0, 0, -1};
+        cards[1] = (Card){"0322310205101014", "032231014", 5678, 50000.0, 0, 0, -1};
+        cards[2] = (Card){"0322310105101025", "032231025", 9012, 99000.0, 0, 0, -1};
+        cardCount = 3;
+        saveCardsToFile(cards, cardCount); // Save initial data
+    }
     int activeCardIndex = -1;
 
     printHeader("Welcome to the ATM Machine");
@@ -360,6 +456,9 @@ int main()
         if (choice != 5 && choice != 9 && !confirmAction("Do you want to perform another action?"))
         {
             printf("Thank you for using the ATM. Goodbye!\n");
+            printf("Team Syntax Error!\n");
+            printf("Powered by PUB!");
+            printf("Powered by CSE, PUB!");
             break;
         }
     }
