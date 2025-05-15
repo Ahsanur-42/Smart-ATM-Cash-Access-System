@@ -293,14 +293,22 @@ void withdraw(Card *card)
 
     time_t t = time(NULL);
     struct tm *now = localtime(&t);
-    int currentDay = now->tm_mday;
+
     int currentMonth = now->tm_mon + 1;
+
+    char todayDate[11];
+    strftime(todayDate, sizeof(todayDate), "%Y-%m-%d", now);
 
     if (card->lastWithdrawMonth != currentMonth)
     {
         card->monthlyWithdrawn = 0;
         card->dailyWithdrawn = 0;
         card->lastWithdrawMonth = currentMonth;
+    }
+
+    if (strcmp(card->lastWithdrawalDate, todayDate) != 0)
+    {
+        card->dailyWithdrawn = 0;
     }
 
     printf("Enter amount to withdraw: $");
@@ -334,15 +342,13 @@ void withdraw(Card *card)
         return;
     }
 
-    strftime(card->lastWithdrawalDate, sizeof(card->lastWithdrawalDate), "%Y-%m-%d", now);
-
     card->balance -= amount;
     card->dailyWithdrawn += amount;
     card->monthlyWithdrawn += amount;
+    strncpy(card->lastWithdrawalDate, todayDate, sizeof(card->lastWithdrawalDate));
+    card->lastWithdrawalDate[sizeof(card->lastWithdrawalDate) - 1] = '\0';
 
-    strftime(card->lastWithdrawalDate, sizeof(card->lastWithdrawalDate), "%Y-%m-%d", now);
-
-    printf("Withdrawal of $%.2f successful! New balance: $%.2f\n", amount, card->balance);
+    printf("\nWithdrawal of $%.2f is successful! \nNew balance: $%.2f\n\n", amount, card->balance);
 
     saveCardToTextFile(card);
 }
@@ -368,19 +374,77 @@ void cardToMobileTransfer(Card *card)
     printHeader("Card to Mobile Transfer");
     char mobileNumber[15];
     double amount;
+    int bankChoice;
 
-    printf("Enter Mobile Number: ");
-    scanf("%14s", mobileNumber);
+    printf("Select Mobile Banking Service:\n");
+    printf("1. bKash\n");
+    printf("2. Rocket\n");
+    printf("3. Nagad\n");
+    printf("4. Upay\n");
+    printf("Enter choice (1-4): ");
+    if (scanf("%d", &bankChoice) != 1 || bankChoice < 1 || bankChoice > 4)
+    {
+        printf("\nInvalid bank selection. Please try again.\n");
+        return;
+    }
+
+    const char *bankName;
+    int expectedLength;
+
+    switch (bankChoice)
+    {
+    case 1:
+        bankName = "bKash";
+        expectedLength = 11;
+        break;
+    case 2:
+        bankName = "Rocket";
+        expectedLength = 12;
+        break;
+    case 3:
+        bankName = "Nagad";
+        expectedLength = 11;
+        break;
+    case 4:
+        bankName = "Upay";
+        expectedLength = 11;
+        break;
+    default:
+        printf("\nUnexpected error occurred.\n");
+        return;
+    }
+
+    while (1)
+    {
+        printf("Enter %s Number: ", bankName);
+        scanf("%14s", mobileNumber);
+
+        int len = strlen(mobileNumber);
+        if (len == expectedLength && strncmp(mobileNumber, "01", 2) == 0)
+        {
+            break; // valid number
+        }
+        printf("\nInvalid number! %s numbers must:\n", bankName);
+        printf("   - Be exactly %d digits\n", expectedLength);
+        printf("   - Start with '01'\n\n");
+    }
 
     printf("Enter amount to transfer: $");
-    if (scanf("%lf", &amount) != 1 || amount <= 0 || amount > card->balance)
+    if (scanf("%lf", &amount) != 1 || amount <= 0)
     {
-        printf("Invalid amount or insufficient balance.\n");
+        printf("\nInvalid amount entered.\n");
+        return;
+    }
+
+    if (amount > card->balance)
+    {
+        printf("\nInsufficient balance. Your current balance is $%.2f\n", card->balance);
         return;
     }
 
     card->balance -= amount;
-    printf("Successfully transferred $%.2f to %s. New balance: $%.2f\n", amount, mobileNumber, card->balance);
+    printf("\nSuccessfully transferred $%.2f to %s number %s.\n", amount, bankName, mobileNumber);
+    printf("New balance: $%.2f\n\n", card->balance);
 
     saveCardToTextFile(card);
 }
